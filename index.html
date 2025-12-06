@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Smart Water Usage Tracker — Demo</title>
+<meta name="description" content="Static Smart Water Usage Tracker demo for school expo" />
+<style>
+  :root{
+    --bg:#f6fbff; --card:#ffffff; --muted:#6b7280; --accent:#0ea5e9; --good:#10b981; --warn:#f59e0b; --bad:#ef4444;
+    --radius:12px; --maxw:980px; color-scheme:light;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:linear-gradient(180deg,#eaf6ff 0%, #ffffff 100%); color:#0f1724;
+    display:flex; justify-content:center; padding:28px;
+  }
+  .wrap{width:100%; max-width:var(--maxw)}
+  header{display:flex; gap:14px; align-items:center; margin-bottom:20px}
+  .logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#7dd3fc); display:grid;place-items:center;color:#022; font-weight:800; font-size:20px; box-shadow:0 6px 20px rgba(14,165,233,0.12)}
+  h1{margin:0;font-size:20px}
+  p.lead{margin:6px 0 0;color:var(--muted)}
+  .grid{display:grid; grid-template-columns: 1fr 360px; gap:18px}
+  @media (max-width:980px){ .grid{grid-template-columns:1fr} .aside-hide{display:none} }
+  .card{background:var(--card); padding:16px; border-radius:var(--radius); box-shadow:0 8px 30px rgba(2,6,23,0.06)}
+  label{display:block; font-weight:600; margin-bottom:6px}
+  .muted{color:var(--muted); font-size:13px}
+  input[type="number"], input[type="text"], textarea, select{
+    width:100%; padding:10px;border-radius:8px;border:1px solid #e6eef6; background:transparent; font-size:14px;
+  }
+  .row{display:flex; gap:8px}
+  .row > *{flex:1}
+  .btn{display:inline-block;background:var(--accent); color:white;padding:8px 12px;border-radius:10px;border:none; cursor:pointer;font-weight:700}
+  .btn.secondary{background:#e6eef6;color:#0f1724}
+  .small{font-size:13px;padding:6px 8px;border-radius:8px}
+  .inputs-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:8px}
+  .day-label{font-weight:600; font-size:13px; margin-bottom:6px}
+  .summary{display:flex; gap:10px; flex-wrap:wrap}
+  .stat{background:linear-gradient(180deg, rgba(14,165,233,0.06), rgba(126,234,255,0.02)); padding:10px;border-radius:10px; min-width:120px}
+  .stat h3{margin:0;font-size:18px}
+  .meter{height:14px;border-radius:8px;background:#e6eef6; overflow:hidden}
+  .meter > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#7efc9f)}
+  canvas{width:100%; height:220px; display:block}
+  .tips{margin-top:8px}
+  .download-links{display:flex; gap:8px; flex-wrap:wrap}
+  footer{margin-top:16px; color:var(--muted); font-size:13px}
+  /* print */
+  @media print{
+    body{padding:0}
+    .btn, .aside-hide, .download-links{display:none}
+  }
+</style>
+</head>
+<body>
+  <main class="wrap" role="main" aria-labelledby="appTitle">
+    <header>
+      <div class="logo">W</div>
+      <div>
+        <h1 id="appTitle">Smart Water Usage Tracker</h1>
+        <p class="lead">Static demo — enter usage and view instant results. No backend required.</p>
+      </div>
+    </header>
+
+    <div class="grid" role="region" aria-label="Main grid">
+      <!-- LEFT: main interaction -->
+      <section class="card" aria-labelledby="inputTitle">
+        <h2 id="inputTitle" style="margin-top:0">Enter Water Usage</h2>
+        <p class="muted">Enter daily water usage in <strong>litres</strong>. You may fill specific activities or daily totals. For quick demo, fill at least one value.</p>
+
+        <form id="usageForm" onsubmit="handleSubmit(event)" novalidate>
+          <div style="margin-top:12px">
+            <label for="mode">Input mode</label>
+            <select id="mode" onchange="switchMode()" aria-label="Choose input mode">
+              <option value="daily">Daily totals (7 days)</option>
+              <option value="activities">Activities (typical daily activities)</option>
+              <option value="paste">Paste comma-separated numbers (quick)</option>
+            </select>
+          </div>
+
+          <!-- DAILY INPUTS -->
+          <div id="dailyInputs" style="margin-top:12px">
+            <div class="inputs-grid" id="daysGrid">
+              <!-- JS will populate day inputs -->
+            </div>
+            <div style="margin-top:8px">
+              <button type="button" class="btn small" onclick="fillExample()">Fill example week</button>
+              <button type="button" class="btn secondary small" onclick="clearInputs()">Clear</button>
+            </div>
+          </div>
+
+          <!-- ACTIVITIES -->
+          <div id="activityInputs" style="display:none; margin-top:12px">
+            <div style="display:grid; gap:8px">
+              <div>
+                <div class="day-label">Shower (minutes)</div>
+                <input id="actShower" type="number" min="0" placeholder="e.g. 10" />
+              </div>
+              <div>
+                <div class="day-label">Toilet flushes (count)</div>
+                <input id="actToilet" type="number" min="0" placeholder="e.g. 6" />
+              </div>
+              <div>
+                <div class="day-label">Dishwashing (minutes)</div>
+                <input id="actDishes" type="number" min="0" placeholder="e.g. 15" />
+              </div>
+              <div>
+                <div class="day-label">Laundry (loads)</div>
+                <input id="actLaundry" type="number" min="0" placeholder="e.g. 1" />
+              </div>
+              <div>
+                <div class="day-label">Tap use (minutes)</div>
+                <input id="actTap" type="number" min="0" placeholder="e.g. 10" />
+              </div>
+              <div>
+                <div class="day-label">Garden/watering (minutes)</div>
+                <input id="actGarden" type="number" min="0" placeholder="e.g. 0" />
+              </div>
+              <div class="muted">* We'll convert activities to estimated litres using preset conversion factors (for demo only).</div>
+            </div>
+          </div>
+
+          <!-- PASTE MODE -->
+          <div id="pasteInputs" style="display:none; margin-top:12px">
+            <label for="pasteArea">Paste comma-separated litres (e.g. 120,130,110)</label>
+            <textarea id="pasteArea" rows="3" placeholder="Comma-separated numbers"></textarea>
+            <div class="muted" style="margin-top:6px">If more than 7 numbers are pasted, first 7 are used. If fewer, blanks count as zeros.</div>
+          </div>
+
+          <div style="margin-top:12px; display:flex; gap:8px; align-items:center">
+            <button class="btn" type="submit">Show Results</button>
+            <button type="button" class="btn secondary" onclick="resetAll()">Reset</button>
+            <div class="muted" style="margin-left:auto">Demo — client-side only</div>
+          </div>
+        </form>
+
+        <!-- RESULTS -->
+        <section id="results" style="margin-top:18px; display:none" aria-live="polite">
+          <h3 style="margin-top:0">Results Summary</h3>
+          <div class="summary" id="summaryStats" style="margin-bottom:10px">
+            <!-- JS inserts stat boxes -->
+          </div>
+
+          <div style="margin-top:8px">
+            <div class="day-label">Usage this period</div>
+            <div class="meter" aria-hidden="true"><i id="meterFill" style="width:30%"></i></div>
+            <div id="meterText" class="muted" style="margin-top:6px"></div>
+          </div>
+
+          <div style="margin-top:12px" class="card">
+            <canvas id="usageChart" width="800" height="260" role="img" aria-label="Usage bar chart"></canvas>
+          </div>
+
+          <div style="margin-top:12px">
+            <h4>Tips to save water</h4>
+            <ul class="tips" id="tipsList">
+              <!-- filled by JS -->
+            </ul>
+          </div>
+
+          <div style="margin-top:10px" class="download-links">
+            <button class="btn small" onclick="downloadCSV()">Download CSV</button>
+            <button class="btn secondary small" onclick="downloadReport()">Download HTML Report</button>
+            <button class="btn secondary small" onclick="window.print()">Print</button>
+          </div>
+        </section>
+
+      </section>
+
+      <!-- RIGHT: aside information -->
+      <aside class="aside-hide">
+        <div class="card" style="margin-bottom:12px">
+          <h3 style="margin-top:0">What this demo shows</h3>
+          <p class="muted">A static, client-side tracker that visualizes water usage from user input. It estimates totals and offers simple suggestions — good for explaining water conservation concepts at a school expo.</p>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Quick facts</h3>
+          <ul class="muted">
+            <li>Average household uses ~100–300 L per person/day (varies by country)</li>
+            <li>Showering & toilet use are major contributors</li>
+            <li>Small changes (shorter showers, efficient taps) can save big</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      <p class="muted">Made for school expo — static demo. All numbers are illustrative. © Demo</p>
+    </footer>
+  </main>
+
+<script>
+/* ======== Helper & UI setup ======== */
+const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const daysGrid = document.getElementById('daysGrid');
+const resultsSection = document.getElementById('results');
+const summaryStats = document.getElementById('summaryStats');
+const meterFill = document.getElementById('meterFill');
+const meterText = document.getElementById('meterText');
+const usageChart = document.getElementById('usageChart');
+const tipsList = document.getElementById('tipsList');
+
+function createDayInputs(){
+  daysGrid.innerHTML = '';
+  for(let i=0;i<7;i++){
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div class="day-label">${days[i]}</div>
+      <input type="number" min="0" step="1" class="day-input" aria-label="${days[i]} litres" placeholder="litres" />
+    `;
+    daysGrid.appendChild(wrapper);
+  }
+}
+createDayInputs();
+
+function switchMode(){
+  const mode = document.getElementById('mode').value;
+  document.getElementById('dailyInputs').style.display = mode==='daily' ? 'block' : 'none';
+  document.getElementById('activityInputs').style.display = mode==='activities' ? 'block' : 'none';
+  document.getElementById('pasteInputs').style.display = mode==='paste' ? 'block' : 'none';
+}
+
+/* ===== Example / reset helpers ===== */
+function fillExample(){
+  const inputs = document.querySelectorAll('.day-input');
+  const example = [130, 125, 140, 110, 115, 200, 180];
+  inputs.forEach((ip, idx) => ip.value = example[idx] ?? 0);
+}
+function clearInputs(){ document.querySelectorAll('.day-input').forEach(i => i.value = ''); }
+function resetAll(){
+  document.getElementById('usageForm').reset();
+  switchMode();
+  clearInputs();
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('actShower').value = '';
+  document.getElementById('actToilet').value = '';
+  document.getElementById('actDishes').value = '';
+  document.getElementById('actLaundry').value = '';
+  document.getElementById('actTap').value = '';
+  document.getElementById('actGarden').value = '';
+  resultsSection.style.display = 'none';
+  summaryStats.innerHTML = '';
+  tipsList.innerHTML = '';
+}
+
+/* ===== Activity to litres conversion (demo presets) ===== */
+const conversion = {
+  showerPerMin: 9,    // litres per minute (typical showerhead)
+  toiletPerFlush: 6,  // litres per flush
+  dishesPerMin: 8,    // running tap for dishes
+  laundryPerLoad: 50, // litres per load
+  tapPerMin: 8,       // general tap flow
+  gardenPerMin: 12    // watering flow
+};
+
+function activitiesToDailyLitres(){
+  const s = Number(document.getElementById('actShower').value) || 0;
+  const t = Number(document.getElementById('actToilet').value) || 0;
+  const d = Number(document.getElementById('actDishes').value) || 0;
+  const l = Number(document.getElementById('actLaundry').value) || 0;
+  const p = Number(document.getElementById('actTap').value) || 0;
+  const g = Number(document.getElementById('actGarden').value) || 0;
+
+  const litres = (s * conversion.showerPerMin) +
+                 (t * conversion.toiletPerFlush) +
+                 (d * conversion.dishesPerMin) +
+                 (l * conversion.laundryPerLoad) +
+                 (p * conversion.tapPerMin) +
+                 (g * conversion.gardenPerMin);
+  // For demo, fill the whole week with this daily estimate
+  return Array(7).fill(Math.round(litres));
+}
+
+/* ===== Main form handler ===== */
+function handleSubmit(e){
+  e.preventDefault();
+  const mode = document.getElementById('mode').value;
+  let data = [];
+
+  if(mode === 'daily'){
+    const inputs = document.querySelectorAll('.day-input');
+    inputs.forEach(i => {
+      const v = Number(i.value);
+      data.push(isNaN(v) ? 0 : Math.max(0, Math.round(v)));
+    });
+  } else if(mode === 'activities'){
+    data = activitiesToDailyLitres();
+  } else if(mode === 'paste'){
+    const text = document.getElementById('pasteArea').value || '';
+    const parts = text.split(',').slice(0,7).map(s => Number(s.trim())).map(v => isNaN(v) ? 0 : Math.max(0, Math.round(v)));
+    while(parts.length < 7) parts.push(0);
+    data = parts;
+  }
+
+  // Basic validation
+  const total = data.reduce((a,b) => a+b, 0);
+  if(total === 0){
+    alert('Please enter some positive numbers so we can show results.');
+    return;
+  }
+
+  // Compute stats
+  const avg = total / data.length;
+  const maxVal = Math.max(...data);
+  const minVal = Math.min(...data);
+  const highestDay = days[data.indexOf(maxVal)];
+  const lowestDay = days[data.indexOf(minVal)];
+
+  showResults({data, total, avg:Math.round(avg*10)/10, maxVal, minVal, highestDay, lowestDay});
+}
+
+/* ===== Displaying results ===== */
+function showResults({data, total, avg, maxVal, minVal, highestDay, lowestDay}){
+  resultsSection.style.display = 'block';
+  summaryStats.innerHTML = '';
+
+  const stats = [
+    {label:'Total (7 days)', value: `${total} L`},
+    {label:'Average / day', value: `${avg} L`},
+    {label:'Highest', value: `${maxVal} L — ${highestDay}`},
+    {label:'Lowest', value: `${minVal} L — ${lowestDay}`}
+  ];
+
+  stats.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'stat';
+    el.innerHTML = `<div style="font-size:12px;color:var(--muted)">${s.label}</div><h3>${s.value}</h3>`;
+    summaryStats.appendChild(el);
+  });
+
+  // Update meter: we choose a simple benchmark: recommended average ~100 L/day per household person (demo).
+  const benchmark = 100 * 1; // show against 1 person baseline (demo)
+  const weeklyBenchmark = benchmark * 7;
+  // percent relative to benchmark
+  const percent = Math.min(200, Math.round((total / weeklyBenchmark) * 100)); // cap at 200%
+  meterFill.style.width = Math.max(3, Math.min(100, percent/2)) + '%'; // visual width scaled
+  meterText.textContent = `Total is ${Math.round((total/weeklyBenchmark)*100)}% of a demo benchmark (${weeklyBenchmark} L/week).`;
+
+  // Chart
+  drawBarChart(data);
+
+  // Tips (simple rule-based suggestions)
+  tipsList.innerHTML = '';
+  const tips = getTips(data, avg);
+  tips.forEach(t => {
+    const li = document.createElement('li');
+    li.textContent = t;
+    tipsList.appendChild(li);
+  });
+
+  // Save data to a hidden element for downloads
+  window.lastData = {data, total, avg, benchmark, weeklyBenchmark};
+}
+
+/* ===== Tips logic ===== */
+function getTips(data, avg){
+  const out = [];
+  // if avg high
+  if(avg > 180) out.push('Your daily average is very high — consider shorter showers, fixing leaks, and efficient fixtures.');
+  else if(avg > 120) out.push('Average is above moderate — try reducing shower time by 2–3 minutes and avoiding running taps.');
+  else out.push('Good job — your average looks reasonable. Keep using water-saving habits.');
+
+  // If a particular day spikes
+  data.forEach((v,i) => {
+    if(v > avg * 1.6) out.push(`${days[i]} is a spike (${v} L). Check for leaks or long activities on that day.`);
+    if(v === 0) out.push(`${days[i]} has zero recorded usage — was the day missed or intentionally zero?`);
+  });
+
+  // Activity-specific suggestions
+  out.push('Tip: Use a bucket to collect cold shower water while waiting for heat — reuse for plants or cleaning.');
+  out.push('Tip: Replace older taps with aerators and choose short showerheads to reduce flow.');
+  return Array.from(new Set(out)).slice(0,6); // unique and limit
+}
+
+/* ===== Chart drawing (canvas) ===== */
+function drawBarChart(values){
+  const canvas = usageChart;
+  const ctx = canvas.getContext('2d');
+  // match to CSS size
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  // clear
+  ctx.clearRect(0,0,rect.width,rect.height);
+
+  const W = rect.width, H = rect.height;
+  const pad = 36;
+  const chartW = W - pad*2;
+  const chartH = H - pad*2;
+
+  // axes
+  ctx.strokeStyle = '#e6eef6';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, pad);
+  ctx.lineTo(pad, pad + chartH);
+  ctx.lineTo(pad + chartW, pad + chartH);
+  ctx.stroke();
+
+  // bars
+  const maxV = Math.max(...values, 10);
+  const barW = chartW / values.length * 0.7;
+  const gap = (chartW / values.length) * 0.3;
+  values.forEach((v,i) => {
+    const x = pad + i * (barW + gap) + gap/2;
+    const h = (v / maxV) * (chartH - 20);
+    const y = pad + chartH - h;
+    // color by level
+    let grad = ctx.createLinearGradient(x, y, x, y+h);
+    if(v <= 100) { grad.addColorStop(0,'#a7f3d0'); grad.addColorStop(1,'#6ee7b7'); } // green
+    else if(v <= 180) { grad.addColorStop(0,'#fef08a'); grad.addColorStop(1,'#fca5a5'); } // yellow/orange
+    else { grad.addColorStop(0,'#fecaca'); grad.addColorStop(1,'#f87171'); } // red
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, barW, h);
+    // label
+    ctx.fillStyle = '#334155';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(days[i], x + barW/2, pad + chartH + 16);
+    ctx.fillText(v + ' L', x + barW/2, y - 6);
+  });
+
+  // title
+  ctx.fillStyle = '#0f1724';
+  ctx.font = '14px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Weekly water usage (litres)', pad, 18);
+}
+
+/* ===== Downloads ===== */
+function downloadCSV(){
+  const d = window.lastData;
+  if(!d){ alert('No results to download yet. Please Show Results.'); return; }
+  const rows = [['Day','Litres'], ...d.data.map((v,i)=>[days[i],v])];
+  rows.push(['Total', d.total]);
+  rows.push(['Average/day', d.avg]);
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'water-usage.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+function downloadReport(){
+  const d = window.lastData;
+  if(!d){ alert('No results to download yet. Please Show Results.'); return; }
+  // Simple HTML report using current values
+  let rows = '';
+  d.data.forEach((v,i) => rows += `<tr><td>${days[i]}</td><td>${v} L</td></tr>`);
+  const html = `
+  <!doctype html><html><head><meta charset="utf-8"><title>Water Usage Report</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;color:#0f1724}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px}</style>
+  </head><body>
+    <h2>Water Usage Report</h2>
+    <p>Total: ${d.total} L • Average/day: ${d.avg} L</p>
+    <table><thead><tr><th>Day</th><th>Litres</th></tr></thead><tbody>${rows}</tbody></table>
+    <p>Generated by Smart Water Usage Tracker (static demo)</p>
+  </body></html>
+  `;
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'water-usage-report.html'; a.click(); URL.revokeObjectURL(url);
+}
+
+/* init */
+switchMode();
+</script>
+</body>
+</html>
